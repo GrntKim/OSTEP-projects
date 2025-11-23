@@ -18,4 +18,4 @@ string_vector.o: string_vector.c string_vector.h
 
 .PHONY: clean
 clean: 
-	rm -f $(TARGET)
+	rm -f $(TARGET) $(OBJS)
