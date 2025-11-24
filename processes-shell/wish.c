@@ -7,13 +7,16 @@
 #include <stdbool.h>
 
 #define MAX_ARGS 10
+#define MAX_PATH 1024
 
 const char error_message[30] = "An error has occurred\n";
 const char* built_in_cmds[] = { "exit", "cd", "path", NULL };
+char* paths[] = { "/usr/bin", "/bin", NULL };
 
 bool is_builtin(char* cmd);
 
 int main(int argc, char** argv) {
+	int i;
 	char* input = NULL;
 	size_t buffer_size = 0;
 	ssize_t nread;
@@ -23,6 +26,8 @@ int main(int argc, char** argv) {
 	const char* delimiter =  " ";
 	int arg_idx;
 	char* inputptr;
+	char* full_path = NULL;
+	bool found_path;
 
 	for(;;) {
 		printf("wish> ");
@@ -53,18 +58,43 @@ int main(int argc, char** argv) {
 			else if (strcmp(args[0], "cd") == 0) {
 				if (arg_idx == 1 || chdir(args[1]) != 0) 
 					write(STDERR_FILENO, error_message, strlen(error_message));
+			} else if (strcmp(args[0], "path") == 0) {
+				printf("under construction\n");
 			}
 		} else if (arg_idx) {
-			rc = fork();
-			if (rc < 0) { // fork fail
-				fprintf(stderr, "fork failed\n");
-				exit(1);
-			} else if (rc == 0) { // child 
-				execvp(args[0], args);
+			i = 0;
+			found_path = false;
+			full_path = malloc(MAX_PATH);
+			if (full_path == NULL) {
 				write(STDERR_FILENO, error_message, strlen(error_message));
 				exit(1);
+			}
+			while (paths[i] != NULL) {
+				snprintf(full_path, MAX_PATH, "%s/%s", paths[i++], args[0]);
+				if (access(full_path, X_OK) == 0) {
+					args[0] = full_path;
+					found_path = true;
+					break;
+				}
+			}
+			if (found_path) {
+				rc = fork();
+				if (rc < 0) { // fork fail
+					write(STDERR_FILENO, error_message, strlen(error_message));
+					free(full_path);
+					exit(1);
+				} else if (rc == 0) { // child 
+					execv(args[0], args);
+					write(STDERR_FILENO, error_message, strlen(error_message));
+					free(full_path);
+					exit(1);
+				} else {
+					wait(NULL);
+					free(full_path);
+				}
 			} else {
-				wait(NULL);
+				write(STDERR_FILENO, error_message, strlen(error_message));
+				free(full_path);
 			}
 		}
 	}
@@ -73,7 +103,6 @@ int main(int argc, char** argv) {
 
 bool is_builtin(char* cmd) {
 	if (cmd == NULL || *cmd == '\0') return false;
-	
 	for (int i = 0; built_in_cmds[i] != NULL; i++)
 		if (strcmp(cmd, built_in_cmds[i]) == 0) return true;
 	return false;
