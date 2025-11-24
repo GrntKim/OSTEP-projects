@@ -10,8 +10,9 @@ all: $(TARGET)
 $(TARGET): $(OBJS)
 	$(CC) $(OBJS) -o $(TARGET)
 
-wish.o: wish.c 
+wish.o: wish.c
 	$(CC) $(CFLAGS) -c wish.c
+
 
 .PHONY: clean
 clean: 
