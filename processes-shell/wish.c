@@ -64,6 +64,10 @@ int main(int argc, char** argv) {
 
 		if (is_builtin(args[0])) {
 			if (strcmp(args[0], "exit") == 0) {
+				if (arg_idx > 1) {
+					write(STDERR_FILENO, error_message, strlen(error_message));
+					continue;
+				}
 				free(input);
 				free(paths);
 				exit(0);
