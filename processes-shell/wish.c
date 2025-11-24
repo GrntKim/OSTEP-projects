@@ -7,7 +7,6 @@
 #include <stdbool.h>
 
 #define MAX_ARGS 10
-#define MAX_PATH 100
 #define MAX_PATH_LEN 1024
 
 const char error_message[30] = "An error has occurred\n";
@@ -30,10 +29,18 @@ int main(int argc, char** argv) {
 	char* inputptr;
 	char* full_path = NULL;
 	bool found_path;
+	FILE* batch;
 
-	for(;;) {
-		printf("wish> ");
-		nread = getline(&input, &buffer_size, stdin);
+	if (argc == 2) { 
+		if((batch = fopen(argv[1], "r")) == NULL) {
+			write(STDERR_FILENO, error_message, strlen(error_message));
+			exit(1);
+		}
+	}
+	while (1) {
+		if (argc == 1)
+			printf("wish> ");
+		nread = getline(&input, &buffer_size, argc == 2 ? batch : stdin);
 
 		// ctrl + D: exit
 		if (nread == -1) { 
