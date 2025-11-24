@@ -11,25 +11,14 @@
 
 const char error_message[30] = "An error has occurred\n";
 const char* built_in_cmds[] = { "exit", "cd", "path", NULL };
+char* paths;
 
+void loop(int argc);
 bool is_builtin(char* cmd);
+char* parse_input(char* args[], int* arg_cnt, int size, FILE* src);
+FILE* batch;
 
 int main(int argc, char** argv) {
-	char* paths = (char*)malloc(MAX_PATH_LEN);
-	strcpy(paths, "/bin");
-	int i;
-	char* input = NULL;
-	size_t buffer_size = 0;
-	ssize_t nread;
-	pid_t rc;
-	char* args[MAX_ARGS];
-	char *token;
-	const char* delimiter =  " ";
-	int arg_idx;
-	char* inputptr;
-	char* full_path = NULL;
-	bool found_path;
-	FILE* batch;
 
 	if (argc == 2) { 
 		if((batch = fopen(argv[1], "r")) == NULL) {
@@ -37,30 +26,26 @@ int main(int argc, char** argv) {
 			exit(1);
 		}
 	}
+
+	loop(argc);
+	return 0;
+}
+
+void loop(int argc) {
+	paths = (char*)malloc(MAX_PATH_LEN);
+	strcpy(paths, "/bin");
+	int i;
+	pid_t rc;
+	char* args[MAX_ARGS];
+	char* full_path = NULL;
+	bool found_path;
+	char* input;
 	while (1) {
-		if (argc == 1)
-			printf("wish> ");
-		nread = getline(&input, &buffer_size, argc == 2 ? batch : stdin);
+		if (argc == 1) printf("wish> ");
 
-		// ctrl + D: exit
-		if (nread == -1) { 
-			free(input);
-			free(paths);
-			exit(0);
-		}
-
-		if (nread && input[nread - 1] == '\n')
-			input[nread - 1] = '\0';
-
-		if (input[0] == '\0') continue;
-
-		inputptr = input;
-		arg_idx = 0;
-		while ((token = strsep(&inputptr, delimiter)) != NULL && 
-				arg_idx < MAX_ARGS - 1)
-			if (*token != '\0')
-				args[arg_idx++] = token;            
-		args[arg_idx] = NULL;
+		int arg_idx = 0;
+		input = parse_input(args, &arg_idx, MAX_ARGS, argc == 2 ? batch : stdin);
+		if (!arg_idx) continue;
 
 		if (is_builtin(args[0])) {
 			if (strcmp(args[0], "exit") == 0) {
@@ -68,7 +53,6 @@ int main(int argc, char** argv) {
 					write(STDERR_FILENO, error_message, strlen(error_message));
 					continue;
 				}
-				free(input);
 				free(paths);
 				exit(0);
 			}
@@ -139,8 +123,8 @@ int main(int argc, char** argv) {
 				free(full_path);
 			}
 		}
+		free(input);
 	}
-	return 0;
 }
 
 bool is_builtin(char* cmd) {
@@ -148,4 +132,36 @@ bool is_builtin(char* cmd) {
 	for (int i = 0; built_in_cmds[i] != NULL; i++)
 		if (strcmp(cmd, built_in_cmds[i]) == 0) return true;
 	return false;
+}
+
+char* parse_input(char** args, int *arg_idx, int size, FILE* src) {
+    char* input = NULL;
+
+	size_t buffer_size = 0;
+	ssize_t nread = getline(&input, &buffer_size, src);
+	if (input[0] == '\0') {
+		free(input);
+		free(paths);
+		exit(0);
+	}
+
+	if (nread == -1) {
+		free(input);
+		free(paths);
+		exit(0);
+	}
+
+	if (nread && input[nread - 1] == '\n')
+		input[nread - 1] = '\0';
+
+
+	char* token;
+	char* ptr = input;
+	while ((token = strsep(&ptr, " ")) != NULL && 
+			*arg_idx < size - 1)
+		if (*token != '\0')
+			args[(*arg_idx)++] = token;            
+	args[*arg_idx] = NULL;
+
+	return input;
 }
